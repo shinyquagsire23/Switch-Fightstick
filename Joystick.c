@@ -351,7 +351,7 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 	         xpos--;
 	   }
 	   
-	   if ((image_data[(xpos / 8)+(ypos*40)] & 1 << (xpos % 8)) && (xpos >= 0))
+	   if (!(image_data[(xpos / 8)+(ypos*40)] & 1 << (xpos % 8)) && (xpos >= 0))
 	      ReportData->Button |= 0x4;
 	      
 	   if (xpos <= 0 && ypos >= 120-1) done_printing = true;
