@@ -35,7 +35,7 @@ def main(argv):
       for j in range(0,320):              # and convert 255 vals to 1
          data.append(1 if im_px[j,i] == 255 else 0)
 
-    str_out = "#include <stdint.h>\n\nuint8_t image_data[0x12c1] = {"
+    str_out = "#include <stdint.h>\n#include <avr/pgmspace.h>\n\nconst uint8_t image_data[0x12c1] PROGMEM = {"
     for i in range(0, (320*120) / 8):
        val = 0;
        
