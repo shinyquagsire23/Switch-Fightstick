@@ -345,7 +345,7 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 	{
 	   input_count = 0;
 	   
-	   if (xpos >= 0)
+	   if (xpos >= 0 && xpos < 320)
 	   {
 	      ReportData->HAT = 0x6; //go left
 	   }
