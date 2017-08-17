@@ -32,24 +32,24 @@ original 13 bits of space, along with attempting to investigate the remaining
 3 bits that are 'unused'. This is what led to finding that the 'Capture'
 button was operational on the stick.
 */
-uint16_t ButtonMap[16] = {
-	0x01, //Y
-	0x02, //B
-	0x04, //A
-	0x08, //X
-	0x10, //L
-	0x20, //R
-	0x40, //ZL
-	0x80, //ZR
-	0x100, //Minus
-	0x200, //Plus
-	0x400, //L-stick
-	0x800, //R-stick
-	0x1000, //Home
-	0x2000, //Capture
-	0x4000, //Unk
-	0x8000, //Unk
-};
+// uint16_t ButtonMap[16] = {
+// 	0x01, //Y
+// 	0x02, //B
+// 	0x04, //A
+// 	0x08, //X
+// 	0x10, //L
+// 	0x20, //R
+// 	0x40, //ZL
+// 	0x80, //ZR
+// 	0x100, //Minus
+// 	0x200, //Plus
+// 	0x400, //L-stick
+// 	0x800, //R-stick
+// 	0x1000, //Home
+// 	0x2000, //Capture
+// 	0x4000, //Unk
+// 	0x8000, //Unk
+// };
 
 const uint8_t image_data[0x12c1] PROGMEM;
 
@@ -63,15 +63,15 @@ This code exists solely to actually test on. This will eventually be replaced.
 **** Debounce ***/
 // Quick debounce hackery!
 // We're going to capture each port separately and store the contents into a 32-bit value.
-uint32_t pb_debounce = 0;
-uint32_t pd_debounce = 0;
+// uint32_t pb_debounce = 0;
+// uint32_t pd_debounce = 0;
 
 // We also need a port state capture. We'll use a 16-bit value for this.
-uint16_t bd_state = 0;
+// uint16_t bd_state = 0;
 
 // We'll also give us some useful macros here.
-#define PINB_DEBOUNCED ((bd_state >> 0) & 0xFF)
-#define PIND_DEBOUNCED ((bd_state >> 8) & 0xFF) 
+// #define PINB_DEBOUNCED ((bd_state >> 0) & 0xFF)
+// #define PIND_DEBOUNCED ((bd_state >> 8) & 0xFF) 
 
 // Main entry point.
 int main(void) {
@@ -207,116 +207,63 @@ void HID_Task(void) {
 		Endpoint_Write_Stream_LE(&JoystickInputData, sizeof(JoystickInputData), NULL);
 		// We then send an IN packet on this endpoint.
 		Endpoint_ClearIN();
-
-		/* Clear the report data afterwards */
-		// memset(&JoystickInputData, 0, sizeof(JoystickInputData));
 	}
 }
 
-int meme = 1;
+int print_meme = true;
 int input_brakes = 0;
 int input_count = 0;
 int xpos = 0;
 int ypos = -1;
-bool print_right = true;
-bool other = true;
 
-bool reset_request = false;
-bool reset = true, sync_setup = true;
-int reset_count = 0;
+bool carriage_return = true;
+bool line_feed = false;
+bool sync_setup = true;
+int carriage_return_steps = 0;
 
 bool done_printing = false;
 
 // Prepare the next report for the host.
 void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 	// All of this code here is handled -really poorly-, and should be replaced with something a bit more production-worthy.
-	uint16_t buf_button   = 0x00;
-	uint8_t  buf_joystick = 0x00;
 
-	/* Clear the report contents */
+	// Clear the report contents
 	memset(ReportData, 0, sizeof(USB_JoystickReport_Input_t));
 
-	buf_button   = 0x0;
-	buf_joystick = 0x0;
-
-	for (int i = 0; i < 16; i++) {
-		if (buf_button & (1 << i))
-			ReportData->Button |= ButtonMap[i];
-	}
-
-	if (buf_joystick & 0x10)
-		ReportData->LX = 0;
-	else if (buf_joystick & 0x20)
-		ReportData->LX = 255;
-	else
-		ReportData->LX = 128;
-
-	if (buf_joystick & 0x80)
-		ReportData->LY = 0;
-	else if (buf_joystick & 0x40)
-		ReportData->LY = 255;
-	else
-		ReportData->LY = 128;
-
-	switch(buf_joystick & 0xF0) {
-		case 0x80: // Top
-			ReportData->HAT = 0x00;
-			break;
-		case 0xA0: // Top-Right
-			ReportData->HAT = 0x01;
-			break;
-		case 0x20: // Right
-			ReportData->HAT = 0x02;
-			break;
-		case 0x60: // Bottom-Right
-			ReportData->HAT = 0x03;
-			break;
-		case 0x40: // Bottom
-			ReportData->HAT = 0x04;
-			break;
-		case 0x50: // Bottom-Left
-			ReportData->HAT = 0x05;
-			break;
-		case 0x10: // Left
-			ReportData->HAT = 0x06;
-			break;
-		case 0x90: // Top-Left
-			ReportData->HAT = 0x07;
-			break;
-		default:
-			ReportData->HAT = 0x08;
-	}
+	#define STICK_DEFAULT 128
+	#define HAT_RIGHT    0x02
+	#define HAT_BOTTOM   0x04
+	#define HAT_LEFT     0x06
+	#define HAT_DEFAULT  0x08
 	
-	//ReportData->LX = xpos;
-	//ReportData->LY = ypos;
+	ReportData->LX = STICK_DEFAULT;
+	ReportData->LY = STICK_DEFAULT;
+	ReportData->HAT = HAT_DEFAULT;
 	
 	if (done_printing) return;
 	
-	if (reset)
+	if (carriage_return)
 	{
-	   reset_count++;
-	   
-	   ReportData->HAT = 0x2;
-	   
-   	   if (
-		reset_count % 100 == 0 &&
-		reset_count < 400 &&
-		sync_setup == true
-	   )
-	   	ReportData->Button |= 0x30;
+		carriage_return_steps++;
+		ReportData->HAT = HAT_RIGHT;
 
-	   if (reset_count == 500 && sync_setup == true)
-	   	ReportData->Button |= 0x04;
+		if (sync_setup)
+		{
+			if (carriage_return_steps % 100 == 0 && carriage_return_steps < 400)
+				ReportData->Button |= SWITCH_L | SWITCH_R;
+			if (carriage_return_steps == 500)
+				ReportData->Button |= SWITCH_A;
+		}
 
-	   if (reset_count >= 800)
-	   {
-	      reset_count = 0;
-	      reset = false;
-	      
-	      xpos = 320;
-	      ypos++;
-	   }
-	   return;
+		if (carriage_return_steps >= 800)
+		{
+			carriage_return_steps = 0;
+			carriage_return = false;
+
+			xpos = 320;
+			ypos++;
+		}
+		return;
 	}
 	
 	sync_setup = false;
@@ -325,49 +272,44 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 	
 	if (input_brakes >= 5)
 	{
-	   if (reset_request)
-	   {
-	      reset = true;
-	      input_brakes = 0;
-	      reset_request = false;;
-	      return;
-	   }
-	   
-	   meme = !meme;
-	   
-	   if (!meme)
-	      other = !other;
-	      
-	   input_brakes = 0;
+		input_brakes = 0;
+		if (line_feed)
+		{
+			carriage_return = true;
+			line_feed = false;
+			return;
+		}
+		print_meme = !print_meme;	      
 	}
 	
-	if (meme)
+	if (print_meme)
 	{
-	   input_count = 0;
-	   
-	   if (xpos >= 0)
-	   {
-	      ReportData->HAT = 0x6; //go left
-	   }
-	   else
-	   {
-	      ReportData->HAT = 0x4;
-	      reset_request = true;
-	   }
+		if (input_count == 0)
+		{
+			if (xpos >= 0)
+				xpos--;
+		}
+
+		if ((pgm_read_byte(&(image_data[(xpos / 8) + (ypos * 40)])) & 1 << (xpos % 8)) && (xpos >= 0))
+			ReportData->Button |= SWITCH_A;
+
+		if (xpos <= 0 && ypos >= 120 - 1)
+			done_printing = true;
+
+		input_count++;
 	}
 	else
 	{
-	   if (!input_count)
-	   {
-	      if (xpos >= 0)
-	         xpos--;
-	   }
-	   
-	   if ((pgm_read_byte(&(image_data[(xpos / 8)+(ypos*40)])) & 1 << (xpos % 8)) && (xpos >= 0))
-	      ReportData->Button |= 0x4;
-	      
-	   if (xpos <= 0 && ypos >= 120-1) done_printing = true;
-
-	   input_count++;
-   }
+		input_count = 0;
+		
+		if (xpos >= 0)
+		{
+			ReportData->HAT = HAT_LEFT;
+		}
+		else
+		{
+			ReportData->HAT = HAT_BOTTOM;
+			line_feed = true;
+		}
+	}
 }
