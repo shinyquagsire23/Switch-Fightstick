@@ -10,7 +10,7 @@ Unlike the Wii U, which handles these controllers on a 'per-game' basis, the Swi
 For my own personal use, I repurposed Switch-Fightstick to output a set sequence of inputs to systematically print Splatoon posts. This works by using the smallest size pen and D-pad inputs to plot out each pixel one-by-one.
 
 #### Printing Procedure
-Use the analog stick to bring the cursor to the top-left corner, then press the D-pad down once to make sure the cursor is at y-position `0` instead of y-position `-1`. Then plug in the controller. Currently there may be issues with controller conflicts while in docked mode, which are avoided by using a USB-C to USB-A adapter in handheld mode. Printing currently takes about an hour.
+Just plug in the controller: it will automatically sync with the console, reset the cursor position and print. In case you see issues with controller conflicts while in docked mode, try to use an USB-C to USB-A adapter in handheld mode. Printing currently takes about an hour.
 
 Each line is printed from left to right, and up to down. This repository has been tested using a Teensy 2.0++ and an Arduino UNO R3.
 
