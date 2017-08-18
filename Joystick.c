@@ -26,7 +26,7 @@ these buttons for our use.
 
 #include "Joystick.h"
 
-const uint8_t image_data[0x12c1] PROGMEM;
+extern const uint8_t image_data[0x12c1] PROGMEM;
 
 // Main entry point.
 int main(void) {
@@ -175,7 +175,7 @@ typedef enum {
 } State_t;
 State_t state = SYNC_CONTROLLER;
 
-#define ECHO_WAIT_TIME_MS 40
+#define ECHO_WAIT_TIME_MS 60
 #define ECHO_DELAY_MS 10
 USB_JoystickReport_Input_t last_report;
 int echo_wait_time = 0;
@@ -202,7 +202,7 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 		Delay_MS(ECHO_DELAY_MS);
 		echo_wait_time -= ECHO_DELAY_MS;
 		return;
-	}		
+	}
 
 	switch (state)
 	{
@@ -218,8 +218,8 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 				report_count = 0;
 				ReportData->Button |= SWITCH_A;
 				state = SYNC_POSITION;
-			}		
-			break;			
+			}
+			break;
 		case SYNC_POSITION:
 			report_count++;
 
@@ -228,16 +228,16 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 				report_count = 0;
 				ReportData->HAT = HAT_BOTTOM;
 				xpos = 0;
-				ypos = 0;								
+				ypos = 0;
 				state = PRINT_DOT;
 			}
 			else
 			{
 				// Moving faster with LX/LY
 				ReportData->LX = STICK_MIN;
-				ReportData->LY = STICK_MIN;			
+				ReportData->LY = STICK_MIN;
 			}
-			break;		
+			break;
 		case PRINT_DOT:
 			if (pgm_read_byte(&(image_data[(xpos / 8) + (ypos * 40)])) & 1 << (xpos % 8))
 				ReportData->Button |= SWITCH_A;
@@ -274,10 +274,11 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 				// It looks like the device filters out a faster LX move here, without touching LY...
 				ReportData->HAT = HAT_LEFT;
 			}
-			break;				
+			break;
 		case DONE:
 			return;
 	}
 	memcpy(&last_report, ReportData, sizeof(USB_JoystickReport_Input_t));
-	echo_wait_time = ECHO_WAIT_TIME_MS;	
+	echo_wait_time = ECHO_WAIT_TIME_MS;
+
 }
