@@ -10,9 +10,9 @@ Unlike the Wii U, which handles these controllers on a 'per-game' basis, the Swi
 For my own personal use, I repurposed Switch-Fightstick to output a set sequence of inputs to systematically print Splatoon posts. This works by using the smallest size pen and D-pad inputs to plot out each pixel one-by-one.
 
 #### Printing Procedure
-Use the analog stick to bring the cursor to the top-right corner, then press the D-pad down once to make sure the cursor is at y-position `0` instead of y-position `-1`. Then plug in the controller. Currently there are issues with controller conflicts while in docked mode which are avoided by using a USB-C to USB-A adapter in handheld mode. Printing currently takes about an hour.
+Just plug in the controller: it will automatically sync with the console, reset the cursor position and print. In case you see issues with controller conflicts while in docked mode, try to use an USB-C to USB-A adapter in handheld mode. Printing currently takes about an hour.
 
-Each line is printed from right to left in order to avoid pixel skipping issues. Currently there are also issues printing to the right and bottom edges. This repository has been tested using a Teensy 2.0++.
+Each line is printed from left to right, and up to down. This repository has been tested using a Teensy 2.0++ and an Arduino UNO R3.
 
 #### Compiling and Flashing onto the Teensy 2.0++
 Go to the Teensy website and download/install the [Teensy Loader application](https://www.pjrc.com/teensy/loader.html). Then, follow their instructions on installing the [GCC Compiler and Tools](https://www.pjrc.com/teensy/gcc.html). (Note for Mac users - the AVR MacPack is now called AVR CrossPack. If that does not work, you can try installing avr-gcc with brew.) Next, you need to grab the LUFA library. You can download it in a zipped folder at the bottom of [this page](http://www.fourwalledcubicle.com/LUFA.php). Unzip the folder, rename it `LUFA`, and place it where you like. Then, download or clone the contents of this repository onto your computer. Next, you'll need to make sure the `LUFA_PATH` inside of the `makefile` points to the `LUFA` subdirectory inside your `LUFA` directory. My `Switch-Fightstick` directory is in the same directory as my `LUFA` directory, so I set `LUFA_PATH = ../LUFA/LUFA`.
