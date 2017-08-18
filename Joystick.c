@@ -20,58 +20,13 @@ these buttons for our use.
 
 /** \file
  *
- *  Main source file for the Joystick demo. This file contains the main tasks of the demo and
+ *  Main source file for the posts printer demo. This file contains the main tasks of the demo and
  *  is responsible for the initial application hardware configuration.
  */
 
 #include "Joystick.h"
 
-/*
-The following ButtonMap variable defines all possible buttons within the
-original 13 bits of space, along with attempting to investigate the remaining
-3 bits that are 'unused'. This is what led to finding that the 'Capture'
-button was operational on the stick.
-*/
-// uint16_t ButtonMap[16] = {
-// 	0x01, //Y
-// 	0x02, //B
-// 	0x04, //A
-// 	0x08, //X
-// 	0x10, //L
-// 	0x20, //R
-// 	0x40, //ZL
-// 	0x80, //ZR
-// 	0x100, //Minus
-// 	0x200, //Plus
-// 	0x400, //L-stick
-// 	0x800, //R-stick
-// 	0x1000, //Home
-// 	0x2000, //Capture
-// 	0x4000, //Unk
-// 	0x8000, //Unk
-// };
-
 const uint8_t image_data[0x12c1] PROGMEM;
-
-/*** Debounce ****
-The following is some -really bad- debounce code. I have a more robust library
-that I've used in other personal projects that would be a much better use
-here, especially considering that this is a stick indented for use with arcade
-fighters.
-
-This code exists solely to actually test on. This will eventually be replaced.
-**** Debounce ***/
-// Quick debounce hackery!
-// We're going to capture each port separately and store the contents into a 32-bit value.
-// uint32_t pb_debounce = 0;
-// uint32_t pd_debounce = 0;
-
-// We also need a port state capture. We'll use a 16-bit value for this.
-// uint16_t bd_state = 0;
-
-// We'll also give us some useful macros here.
-// #define PINB_DEBOUNCED ((bd_state >> 0) & 0xFF)
-// #define PIND_DEBOUNCED ((bd_state >> 8) & 0xFF) 
 
 // Main entry point.
 int main(void) {
@@ -210,106 +165,119 @@ void HID_Task(void) {
 	}
 }
 
-int print_meme = true;
-int input_brakes = 0;
-int input_count = 0;
+typedef enum {
+	SYNC_CONTROLLER,
+	SYNC_POSITION,
+	PRINT_DOT,
+	MOVE_DOT,
+	CARRIAGE_RETURN,
+	DONE
+} State_t;
+State_t state = SYNC_CONTROLLER;
+
+#define ECHO_WAIT_TIME_MS 40
+#define ECHO_DELAY_MS 10
+USB_JoystickReport_Input_t last_report;
+int echo_wait_time = 0;
+
+int report_count = 0;
 int xpos = 0;
-int ypos = -1;
-
-bool carriage_return = true;
-bool line_feed = false;
-bool sync_setup = true;
-int carriage_return_steps = 0;
-
-bool done_printing = false;
+int ypos = 0;
 
 // Prepare the next report for the host.
 void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
-	// All of this code here is handled -really poorly-, and should be replaced with something a bit more production-worthy.
 
-	// Clear the report contents
+	// Prepare an empty report
 	memset(ReportData, 0, sizeof(USB_JoystickReport_Input_t));
+	ReportData->LX = STICK_CENTER;
+	ReportData->LY = STICK_CENTER;
+	ReportData->RX = STICK_CENTER;
+	ReportData->RY = STICK_CENTER;	
+	ReportData->HAT = HAT_CENTER;
 
-	#define STICK_DEFAULT 128
-	#define HAT_RIGHT    0x02
-	#define HAT_BOTTOM   0x04
-	#define HAT_LEFT     0x06
-	#define HAT_DEFAULT  0x08
-	
-	ReportData->LX = STICK_DEFAULT;
-	ReportData->LY = STICK_DEFAULT;
-	ReportData->HAT = HAT_DEFAULT;
-	
-	if (done_printing) return;
-	
-	if (carriage_return)
+	if (echo_wait_time > ECHO_DELAY_MS)
 	{
-		carriage_return_steps++;
-		ReportData->HAT = HAT_RIGHT;
-
-		if (sync_setup)
-		{
-			if (carriage_return_steps % 100 == 0 && carriage_return_steps < 400)
-				ReportData->Button |= SWITCH_L | SWITCH_R;
-			if (carriage_return_steps == 500)
-				ReportData->Button |= SWITCH_A;
-		}
-
-		if (carriage_return_steps >= 800)
-		{
-			carriage_return_steps = 0;
-			carriage_return = false;
-
-			xpos = 320;
-			ypos++;
-		}
+		// Repeat the last report
+		memcpy(ReportData, &last_report, sizeof(USB_JoystickReport_Input_t));
+		Delay_MS(ECHO_DELAY_MS);
+		echo_wait_time -= ECHO_DELAY_MS;
 		return;
-	}
-	
-	sync_setup = false;
+	}		
 
-	input_brakes++;
-	
-	if (input_brakes >= 5)
+	switch (state)
 	{
-		input_brakes = 0;
-		if (line_feed)
-		{
-			carriage_return = true;
-			line_feed = false;
+		case SYNC_CONTROLLER:
+			report_count++;
+	
+			if (report_count % 10 == 0 && report_count < 40)
+			{
+				ReportData->Button |= SWITCH_L | SWITCH_R;
+			}
+			else if (report_count == 50)
+			{
+				report_count = 0;
+				ReportData->Button |= SWITCH_A;
+				state = SYNC_POSITION;
+			}		
+			break;			
+		case SYNC_POSITION:
+			report_count++;
+
+			if (report_count == 150)
+			{
+				report_count = 0;
+				ReportData->HAT = HAT_BOTTOM;
+				xpos = 0;
+				ypos = 0;								
+				state = PRINT_DOT;
+			}
+			else
+			{
+				// Moving faster with LX/LY
+				ReportData->LX = STICK_MIN;
+				ReportData->LY = STICK_MIN;			
+			}
+			break;		
+		case PRINT_DOT:
+			if (pgm_read_byte(&(image_data[(xpos / 8) + (ypos * 40)])) & 1 << (xpos % 8))
+				ReportData->Button |= SWITCH_A;
+			if (xpos > 0 || ypos < 120)
+				state = MOVE_DOT;
+			else
+				state = DONE;
+			break;
+		case MOVE_DOT:
+			if (xpos < 320 - 1)
+			{
+				ReportData->HAT = HAT_RIGHT;
+				xpos++;
+				state = PRINT_DOT;
+			}
+			else
+			{
+				ReportData->HAT = HAT_BOTTOM;
+				ypos++;
+				state = CARRIAGE_RETURN;
+			}
+			break;
+		case CARRIAGE_RETURN:
+			report_count++;
+
+			if (report_count == 150)
+			{
+				report_count = 0;
+				xpos = 0;
+				state = PRINT_DOT;
+			}
+			else
+			{
+				// It looks like the device filters out a faster LX move here, without touching LY...
+				ReportData->HAT = HAT_LEFT;
+			}
+			break;				
+		case DONE:
 			return;
-		}
-		print_meme = !print_meme;	      
 	}
-	
-	if (print_meme)
-	{
-		if (input_count == 0)
-		{
-			if (xpos >= 0)
-				xpos--;
-		}
-
-		if ((pgm_read_byte(&(image_data[(xpos / 8) + (ypos * 40)])) & 1 << (xpos % 8)) && (xpos >= 0))
-			ReportData->Button |= SWITCH_A;
-
-		if (xpos <= 0 && ypos >= 120 - 1)
-			done_printing = true;
-
-		input_count++;
-	}
-	else
-	{
-		input_count = 0;
-		
-		if (xpos >= 0)
-		{
-			ReportData->HAT = HAT_LEFT;
-		}
-		else
-		{
-			ReportData->HAT = HAT_BOTTOM;
-			line_feed = true;
-		}
-	}
+	memcpy(&last_report, ReportData, sizeof(USB_JoystickReport_Input_t));
+	echo_wait_time = ECHO_WAIT_TIME_MS;	
 }
