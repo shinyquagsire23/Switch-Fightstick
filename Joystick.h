@@ -71,6 +71,20 @@ typedef enum {
 	SWITCH_CAPTURE = 0x2000,
 } JoystickButtons_t;
 
+#define HAT_TOP          0x00
+#define HAT_TOP_RIGHT    0x01
+#define HAT_RIGHT        0x02
+#define HAT_BOTTOM_RIGHT 0x03
+#define HAT_BOTTOM       0x04
+#define HAT_BOTTOM_LEFT  0x05
+#define HAT_LEFT         0x06
+#define HAT_TOP_LEFT     0x07
+#define HAT_CENTER       0x08
+
+#define STICK_MIN      0
+#define STICK_CENTER 128
+#define STICK_MAX    255
+
 // Joystick HID report structure. We have an input and an output.
 typedef struct {
 	uint16_t Button; // 16 buttons; see JoystickButtons_t for bit mapping
