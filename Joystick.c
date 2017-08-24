@@ -231,7 +231,6 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 			if (report_count == 150)
 			{
 				report_count = 0;
-				ReportData->HAT = HAT_BOTTOM;
 				xpos = 0;
 				ypos = 0;
 				state = PRINT_DOT;
