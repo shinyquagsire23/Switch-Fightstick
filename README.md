@@ -14,7 +14,7 @@ For my own personal use, I repurposed Switch-Fightstick to output a set sequence
 #### Printing Procedure
 Just press L to select the pixel pen and plug in the controller: it will automatically sync with the console, reset the cursor position, clean the canvas and print. In case you see issues with controller conflicts while in docked mode, try using a USB-C to USB-A adapter in handheld mode. In dock mode, changes in the HDMI connection will briefly make the Switch not respond to incoming USB commands, skipping pixels in the printout. These changes may include turning off the TV, or switching the HDMI input. (Switching to the internal tuner will be OK, if this doesn't trigger a change in the HDMI input.)
 
-Each line is printed top to bottom, alternating from left to right and viceversa. Printing currently takes about half an hour.
+The printing goes from top to bottom, alternating between two lines, from left to right and viceversa. Printing currently takes about 25 minutes.
 
 Optionally, upon completion, the Teensy's LED will begin flashing. On compatible Arduino boards, some combination of the onboard LEDs will flash. On the UNO, for instance, both TX and RX LEDs will flash, however the other LEDs will not. If this functionality is desired, issue `make with-alert` when building the firmware. All pins on both PORTB and PORTD are toggled! Beware of possible interactions with any attached peripherals, say from another project.
 
