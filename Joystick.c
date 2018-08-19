@@ -18,15 +18,173 @@ exception of Home and Capture. Descriptor modification allows us to unlock
 these buttons for our use.
 */
 
-/** \file
- *
- *  Main source file for the posts printer demo. This file contains the main tasks of
- *  the demo and is responsible for the initial application hardware configuration.
- */
-
 #include "Joystick.h"
 
-extern const uint8_t image_data[0x12c1] PROGMEM;
+typedef enum {
+	UP,
+	DOWN,
+	LEFT,
+	RIGHT,
+	X,
+	Y,
+	A,
+	B,
+	L,
+	R,
+	THROW,
+	NOTHING,
+	TRIGGERS
+} Buttons_t;
+
+typedef struct {
+	Buttons_t button;
+	uint16_t duration;
+} command; 
+
+static const command step[] = {
+	// Setup controller
+	{ NOTHING,  250 },
+	{ TRIGGERS,   5 },
+	{ NOTHING,  150 },
+	{ TRIGGERS,   5 },
+	{ NOTHING,  150 },
+	{ A,          5 },
+	{ NOTHING,  250 },
+
+	// Talk to Pondo
+	{ A,          5 }, // Start
+	{ NOTHING,   30 },
+	{ B,          5 }, // Quick output of text
+	{ NOTHING,   20 }, // Halloo, kiddums!
+	{ A,          5 }, // <- I'll try it!
+	{ NOTHING,   15 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ A,          5 }, // <- OK!
+	{ NOTHING,   15 },
+	{ B,          5 },
+	{ NOTHING,   20 }, // Aha! Play bells are ringing! I gotta set up the pins, but I'll be back in a flurry
+	{ A,          5 }, // <Continue>
+	{ NOTHING,  325 }, // Cut to different scene (Knock 'em flat!)
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ A,          5 }, // <Continue> // Camera transition takes place after this
+	{ NOTHING,   50 },
+	{ B,          5 },
+	{ NOTHING,   20 }, // If you can knock over all 10 pins in one roll, that's a strike
+	{ A,          5 }, // <Continue>
+	{ NOTHING,   15 },
+	{ B,          5 },
+	{ NOTHING,   20 }, // A spare is...
+	{ A,          5 }, // <Continue>
+	{ NOTHING,  100 }, // Well, good luck
+	{ A,          5 }, // <Continue>
+	{ NOTHING,  150 }, // Pondo walks away
+
+	// Pick up Snowball (Or alternatively, run to bail in case of a non-strike)
+	{ A,          5 },
+	{ NOTHING,   50 },
+	{ LEFT,      42 },
+	{ UP,        80 },
+	{ THROW,     25 },
+
+	// Non-strike alternative flow, cancel bail and rethrow
+	{ NOTHING,   30 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 }, // I have to split dialogue (It's nothing)
+	{ NOTHING,   15 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,  450 },
+	{ B,          5 }, // Snowly moly... there are rules!
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 }, // Second dialogue
+	{ NOTHING,   20 },
+	{ DOWN,      10 }, // Return to snowball
+	{ NOTHING,   20 },
+	{ A,          5 }, // Pick up snowball, we just aimlessly throw it
+	{ NOTHING,   50 },
+	{ UP,        10 },
+	{ THROW,     25 },
+
+	// Back at main flow
+	{ NOTHING,  175 }, // Ater throw wait
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 }, // To the rewards
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	
+	{ B,          5 }, // Wait for 450 cycles by bashing B (Like real players do!)
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 },
+	{ B,          5 },
+	{ NOTHING,   20 } // Saving, intermission
+};
 
 // Main entry point.
 int main(void) {
@@ -141,10 +299,9 @@ void HID_Task(void) {
 typedef enum {
 	SYNC_CONTROLLER,
 	SYNC_POSITION,
-	STOP_X,
-	STOP_Y,
-	MOVE_X,
-	MOVE_Y,
+	BREATHE,
+	PROCESS,
+	CLEANUP,
 	DONE
 } State_t;
 State_t state = SYNC_CONTROLLER;
@@ -156,6 +313,8 @@ USB_JoystickReport_Input_t last_report;
 int report_count = 0;
 int xpos = 0;
 int ypos = 0;
+int bufindex = 0;
+int duration_count = 0;
 int portsval = 0;
 
 // Prepare the next report for the host.
@@ -180,73 +339,144 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 	// States and moves management
 	switch (state)
 	{
+
 		case SYNC_CONTROLLER:
-			if (report_count > 100)
-			{
-				report_count = 0;
-				state = SYNC_POSITION;
-			}
-			else if (report_count == 25 || report_count == 50)
-			{
-				ReportData->Button |= SWITCH_L | SWITCH_R;
-			}
-			else if (report_count == 75 || report_count == 100)
-			{
-				ReportData->Button |= SWITCH_A;
-			}
-			report_count++;
+			state = BREATHE;
 			break;
+
+		// case SYNC_CONTROLLER:
+		// 	if (report_count > 550)
+		// 	{
+		// 		report_count = 0;
+		// 		state = SYNC_POSITION;
+		// 	}
+		// 	else if (report_count == 250 || report_count == 300 || report_count == 325)
+		// 	{
+		// 		ReportData->Button |= SWITCH_L | SWITCH_R;
+		// 	}
+		// 	else if (report_count == 350 || report_count == 375 || report_count == 400)
+		// 	{
+		// 		ReportData->Button |= SWITCH_A;
+		// 	}
+		// 	else
+		// 	{
+		// 		ReportData->Button = 0;
+		// 		ReportData->LX = STICK_CENTER;
+		// 		ReportData->LY = STICK_CENTER;
+		// 		ReportData->RX = STICK_CENTER;
+		// 		ReportData->RY = STICK_CENTER;
+		// 		ReportData->HAT = HAT_CENTER;
+		// 	}
+		// 	report_count++;
+		// 	break;
+
 		case SYNC_POSITION:
-			if (report_count == 250)
-			{
-				report_count = 0;
-				xpos = 0;
-				ypos = 0;
-				state = STOP_X;
-			}
-			else
-			{
-				// Moving faster with LX/LY
-				ReportData->LX = STICK_MIN;
-				ReportData->LY = STICK_MIN;
-			}
-			if (report_count == 75 || report_count == 150)
-			{
-				// Clear the screen
-				ReportData->Button |= SWITCH_MINUS;
-			}
-			report_count++;
+			bufindex = 0;
+
+
+			ReportData->Button = 0;
+			ReportData->LX = STICK_CENTER;
+			ReportData->LY = STICK_CENTER;
+			ReportData->RX = STICK_CENTER;
+			ReportData->RY = STICK_CENTER;
+			ReportData->HAT = HAT_CENTER;
+
+
+			state = BREATHE;
 			break;
-		case STOP_X:
-			state = MOVE_X;
+
+		case BREATHE:
+			state = PROCESS;
 			break;
-		case STOP_Y:
-			if (ypos < 120 - 1)
-				state = MOVE_Y;
-			else
-				state = DONE;
-			break;
-		case MOVE_X:
-			if (ypos % 2)
+
+		case PROCESS:
+
+			switch (step[bufindex].button)
 			{
-				ReportData->HAT = HAT_LEFT;
-				xpos--;
+
+				case UP:
+					ReportData->LY = STICK_MIN;				
+					break;
+
+				case LEFT:
+					ReportData->LX = STICK_MIN;				
+					break;
+
+				case DOWN:
+					ReportData->LY = STICK_MAX;				
+					break;
+
+				case RIGHT:
+					ReportData->LX = STICK_MAX;				
+					break;
+
+				case A:
+					ReportData->Button |= SWITCH_A;
+					break;
+
+				case B:
+					ReportData->Button |= SWITCH_B;
+					break;
+
+				case R:
+					ReportData->Button |= SWITCH_R;
+					break;
+
+				case THROW:
+					ReportData->LY = STICK_MIN;				
+					ReportData->Button |= SWITCH_R;
+					break;
+
+				case TRIGGERS:
+					ReportData->Button |= SWITCH_L | SWITCH_R;
+					break;
+
+				default:
+					ReportData->LX = STICK_CENTER;
+					ReportData->LY = STICK_CENTER;
+					ReportData->RX = STICK_CENTER;
+					ReportData->RY = STICK_CENTER;
+					ReportData->HAT = HAT_CENTER;
+					break;
 			}
-			else
+
+			duration_count++;
+
+			if (duration_count > step[bufindex].duration)
 			{
-				ReportData->HAT = HAT_RIGHT;
-				xpos++;
+				bufindex++;
+				duration_count = 0;				
 			}
-			if (xpos > 0 && xpos < 320 - 1)
-				state = STOP_X;
-			else
-				state = STOP_Y;
+
+
+			if (bufindex > (int)( sizeof(step) / sizeof(step[0])) - 1)
+			{
+
+				// state = CLEANUP;
+
+				bufindex = 7;
+				duration_count = 0;
+
+				state = BREATHE;
+
+				ReportData->LX = STICK_CENTER;
+				ReportData->LY = STICK_CENTER;
+				ReportData->RX = STICK_CENTER;
+				ReportData->RY = STICK_CENTER;
+				ReportData->HAT = HAT_CENTER;
+
+
+				// state = DONE;
+//				state = BREATHE;
+
+			}
+
 			break;
-		case MOVE_Y:
-			ReportData->HAT = HAT_BOTTOM;
-			ypos++;
-			state = STOP_X;
+
+		case CLEANUP:
+			state = DONE;
 			break;
+
 		case DONE:
 			#ifdef ALERT_WHEN_DONE
 			portsval = ~portsval;
@@ -257,10 +487,10 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 			return;
 	}
 
-	// Inking
-	if (state != SYNC_CONTROLLER && state != SYNC_POSITION)
-		if (pgm_read_byte(&(image_data[(xpos / 8) + (ypos * 40)])) & 1 << (xpos % 8))
-			ReportData->Button |= SWITCH_A;
+	// // Inking
+	// if (state != SYNC_CONTROLLER && state != SYNC_POSITION)
+	// 	if (pgm_read_byte(&(image_data[(xpos / 8) + (ypos * 40)])) & 1 << (xpos % 8))
+	// 		ReportData->Button |= SWITCH_A;
 
 	// Prepare to echo this report
 	memcpy(&last_report, ReportData, sizeof(USB_JoystickReport_Input_t));
